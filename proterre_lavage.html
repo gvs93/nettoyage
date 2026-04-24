@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>PROTERRE — Suivi lavage rolls</title>
+<style>
+  :root {
+    --vert: #3B6D11; --vert-bg: #EAF3DE; --vert-border: #97C459;
+    --orange: #854F0B; --orange-bg: #FAEEDA; --orange-border: #EF9F27;
+    --rouge: #993C1D; --rouge-bg: #FAECE7; --rouge-border: #F0997B;
+    --bleu: #185FA5; --bleu-bg: #E6F1FB; --bleu-border: #85B7EB;
+    --gris: #444441; --gris-bg: #F1EFE8; --gris-border: #B4B2A9;
+    --text: #2C2C2A; --text2: #5F5E5A; --border: #D3D1C7;
+    --bg: #ffffff; --bg2: #F1EFE8; --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg2); color: var(--text); font-size: 15px; }
+  header { background: var(--vert); color: white; padding: 14px 16px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 10; }
+  header h1 { font-size: 16px; font-weight: 600; flex: 1; }
+  .tabs { display: flex; background: var(--bg); border-bottom: 1px solid var(--border); position: sticky; top: 52px; z-index: 9; }
+  .tab { flex: 1; padding: 12px 4px; text-align: center; font-size: 13px; font-weight: 500; color: var(--text2); border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent; }
+  .tab.active { color: var(--vert); border-bottom-color: var(--vert); }
+  .section { display: none; padding: 16px; max-width: 600px; margin: 0 auto; }
+  .section.active { display: block; }
+  .config-input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; margin-top: 8px; background: var(--bg); color: var(--text); }
+  .btn-primary { width: 100%; padding: 12px; background: var(--vert); color: white; border: none; border-radius: var(--radius); font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+  .card { background: var(--bg); border-radius: var(--radius); border: 1px solid var(--border); padding: 14px; margin-bottom: 12px; }
+  .op-row { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+  .op-row label { font-size: 13px; color: var(--text2); white-space: nowrap; }
+  select, input[type=text] { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--bg); color: var(--text); flex: 1; width: 100%; }
+  .scan-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .scan-row input { flex: 1; font-size: 16px; padding: 10px 12px; }
+  .btn-scan { padding: 10px 14px; background: var(--vert); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .btn-cam { width: 100%; padding: 12px; border: 2px dashed var(--vert-border); border-radius: 8px; background: var(--vert-bg); color: var(--vert); font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 10px; }
+  #video-wrap { display: none; margin-bottom: 12px; position: relative; background: #000; border-radius: 8px; overflow: hidden; min-height: 180px; }
+  #video { width: 100%; display: block; }
+  .close-cam { position: absolute; top: 8px; right: 8px; background: white; border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; z-index: 2; font-weight: 600; }
+  .corner { position: absolute; width: 24px; height: 24px; border-color: rgba(255,255,255,0.9); border-style: solid; }
+  .corner.tl { top: 15%; left: 15%; border-width: 3px 0 0 3px; border-radius: 3px 0 0 0; }
+  .corner.tr { top: 15%; right: 15%; border-width: 3px 3px 0 0; border-radius: 0 3px 0 0; }
+  .corner.bl { bottom: 15%; left: 15%; border-width: 0 0 3px 3px; border-radius: 0 0 0 3px; }
+  .corner.br { bottom: 15%; right: 15%; border-width: 0 3px 3px 0; border-radius: 0 0 3px 0; }
+  #scan-status { position: absolute; bottom: 8px; left: 0; right: 0; text-align: center; font-size: 12px; font-weight: 600; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.9); padding: 4px 8px; pointer-events: none; }
+  .result-card { background: var(--bg); border-radius: var(--radius); border: 1px solid var(--border); padding: 14px; margin-bottom: 12px; }
+  .result-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .result-id { font-size: 20px; font-weight: 700; }
+  .result-meta { font-size: 12px; color: var(--text2); margin-bottom: 14px; }
+  .lavage-select, .notes-input { margin-bottom: 10px; }
+  .lavage-select label, .notes-input label { font-size: 12px; color: var(--text2); display: block; margin-bottom: 4px; }
+  .status-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .btn-status { padding: 12px 8px; border-radius: 8px; border: 1px solid; cursor: pointer; font-size: 13px; font-weight: 600; text-align: center; }
+  .btn-sale { background: var(--rouge-bg); color: var(--rouge); border-color: var(--rouge-border); }
+  .btn-aspir { background: var(--orange-bg); color: var(--orange); border-color: var(--orange-border); }
+  .btn-dasr { background: var(--bleu-bg); color: var(--bleu); border-color: var(--bleu-border); }
+  .btn-propre { background: var(--vert-bg); color: var(--vert); border-color: var(--vert-border); grid-column: span 2; padding: 14px; font-size: 15px; }
+  .btn-incident { background: var(--rouge-bg); color: var(--rouge); border-color: var(--rouge-border); grid-column: span 2; }
+  .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-propre { background: var(--vert-bg); color: var(--vert); }
+  .badge-sale { background: var(--rouge-bg); color: var(--rouge); }
+  .badge-aspir { background: var(--orange-bg); color: var(--orange); }
+  .badge-dasr { background: var(--bleu-bg); color: var(--bleu); }
+  .badge-incident { background: var(--rouge-bg); color: var(--rouge); }
+  .badge-inconnu { background: var(--gris-bg); color: var(--gris); }
+  .metrics { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 16px; }
+  .metric { background: var(--bg); border-radius: var(--radius); padding: 12px; text-align: center; border: 1px solid var(--border); }
+  .metric-val { font-size: 28px; font-weight: 700; }
+  .metric-label { font-size: 11px; color: var(--text2); margin-top: 2px; }
+  .metric-val.propre { color: var(--vert); }
+  .metric-val.sale { color: var(--rouge); }
+  .metric-val.encours { color: var(--orange); }
+  .alert-box { background: var(--rouge-bg); border: 1px solid var(--rouge-border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 16px; display: none; }
+  .alert-box h3 { font-size: 13px; color: var(--rouge); margin-bottom: 6px; }
+  .alert-item { font-size: 12px; color: var(--rouge); padding: 3px 0; }
+  .filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .filter-btn { padding: 5px 12px; border: 1px solid var(--border); border-radius: 20px; font-size: 12px; cursor: pointer; background: var(--bg); color: var(--text2); white-space: nowrap; }
+  .filter-btn.active { background: var(--vert); color: white; border-color: var(--vert); }
+  .roll-list { display: flex; flex-direction: column; gap: 8px; }
+  .roll-item { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--bg); border-radius: var(--radius); border: 1px solid var(--border); cursor: pointer; }
+  .roll-item-id { font-weight: 700; font-size: 15px; flex: 1; }
+  .roll-item-meta { font-size: 11px; color: var(--text2); }
+  .hist-item { border-left: 3px solid var(--border); margin-left: 8px; padding: 8px 12px; margin-bottom: 8px; }
+  .hist-item.propre { border-color: var(--vert-border); }
+  .hist-item.sale, .hist-item.incident { border-color: var(--rouge-border); }
+  .hist-item.aspir { border-color: var(--orange-border); }
+  .hist-item.dasr { border-color: var(--bleu-border); }
+  .hist-action { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+  .hist-meta { font-size: 12px; color: var(--text2); }
+  .hist-notes { font-size: 12px; background: var(--bg2); padding: 4px 8px; border-radius: 4px; margin-top: 4px; }
+  .loading, .empty { text-align: center; padding: 2rem; color: var(--text2); font-size: 14px; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #222; color: white; padding: 10px 20px; border-radius: 20px; font-size: 13px; font-weight: 500; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 99; white-space: nowrap; max-width: 90vw; overflow: hidden; text-overflow: ellipsis; }
+  .toast.show { opacity: 1; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .sep { height: 1px; background: var(--border); margin: 12px 0; }
+  .section-title { font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div style="width:28px;height:28px;background:rgba(255,255,255,0.25);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px;">🧺</div>
+  <h1>Suivi lavage — PROTERRE</h1>
+  <span id="sync-status" style="font-size:12px;opacity:0.8;">⬤</span>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('scanner')">Scanner</button>
+  <button class="tab" onclick="switchTab('dashboard')">Tableau</button>
+  <button class="tab" onclick="switchTab('historique')">Historique</button>
+  <button class="tab" onclick="switchTab('config')">Config</button>
+</div>
+
+<div id="scanner" class="section active">
+  <div class="card">
+    <div class="op-row">
+      <label>Opérateur :</label>
+      <select id="operateur"><option>— choisir —</option></select>
+    </div>
+    <button class="btn-cam" id="btn-cam-toggle" onclick="toggleCamera()">📷 Scanner avec la caméra</button>
+    <div id="video-wrap">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="canvas" style="display:none"></canvas>
+      <div class="corner tl"></div><div class="corner tr"></div>
+      <div class="corner bl"></div><div class="corner br"></div>
+      <div id="scan-status">⏳ Démarrage…</div>
+      <button class="close-cam" onclick="closeCamera()">✕ Fermer</button>
+    </div>
+    <div class="scan-row">
+      <input type="text" id="scan-input" placeholder="R-001 ou scan douchette…" autocomplete="off" autocapitalize="characters" onkeydown="if(event.key==='Enter')processScan()" />
+      <button class="btn-scan" onclick="processScan()">OK</button>
+    </div>
+    <div style="font-size:11px;color:var(--text2)">La douchette valide automatiquement après le scan (Entrée)</div>
+  </div>
+  <div id="scan-result"></div>
+</div>
+
+<div id="dashboard" class="section">
+  <div class="metrics">
+    <div class="metric"><div class="metric-val propre" id="cnt-propre">—</div><div class="metric-label">Propres</div></div>
+    <div class="metric"><div class="metric-val sale" id="cnt-sale">—</div><div class="metric-label">Sales</div></div>
+    <div class="metric"><div class="metric-val encours" id="cnt-total">—</div><div class="metric-label">Total</div></div>
+  </div>
+  <div class="alert-box" id="alert-box"><h3>⚠️ Lavages en retard</h3><div id="alert-list"></div></div>
+  <div class="filter-row">
+    <button class="filter-btn active" onclick="setFilter('tous',this)">Tous</button>
+    <button class="filter-btn" onclick="setFilter('propre',this)">Propres</button>
+    <button class="filter-btn" onclick="setFilter('sale',this)">Sales</button>
+    <button class="filter-btn" onclick="setFilter('aspir',this)">Aspirateur</button>
+    <button class="filter-btn" onclick="setFilter('dasr',this)">DASR</button>
+    <button class="filter-btn" onclick="setFilter('incident',this)">Incident</button>
+  </div>
+  <div id="roll-list" class="roll-list"><div class="loading">Chargement…</div></div>
+</div>
+
+<div id="historique" class="section">
+  <div class="op-row" style="margin-bottom:12px">
+    <label>Filtrer roll :</label>
+    <input type="text" id="hist-filter" placeholder="R-001…" oninput="renderHistorique()" style="max-width:120px" />
+    <button onclick="document.getElementById('hist-filter').value='';renderHistorique();" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:none;cursor:pointer;font-size:13px;color:var(--text2);">✕</button>
+  </div>
+  <div id="hist-list"><div class="loading">Chargement…</div></div>
+</div>
+
+<div id="config" class="section">
+  <div class="card">
+    <div class="section-title">URL Google Apps Script</div>
+    <input type="text" class="config-input" id="script-url" placeholder="https://script.google.com/macros/s/…/exec" />
+    <button class="btn-primary" onclick="saveConfig()">Enregistrer et tester la connexion</button>
+  </div>
+  <div class="card" style="margin-top:12px">
+    <div class="section-title">Opérateurs (cet appareil)</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:8px">Un par ligne</p>
+    <textarea id="operateurs-list" rows="6" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;resize:vertical;background:var(--bg);color:var(--text)"></textarea>
+    <button class="btn-primary" onclick="saveOperateurs()">Enregistrer</button>
+  </div>
+  <div class="card" style="margin-top:12px">
+    <div class="section-title">Ajouter un roll manuellement</div>
+    <div class="scan-row">
+      <input type="text" id="new-roll-id" placeholder="R-042" />
+      <button class="btn-scan" onclick="addRoll()">Ajouter</button>
+    </div>
+  </div>
+  <div id="config-status" style="margin-top:12px;font-size:13px;text-align:center;color:var(--text2)"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+<script>
+// ════════════════════════════════════
+// CONFIG PAR DÉFAUT
+const DEFAULT_SCRIPT_URL = 'https://script.google.com/a/macros/probon.fr/s/AKfycbyH9idPZdJ4dXJmfJXebKNQVn0ITMlQL2eKbS6chNS0roLWdjv-mb3IdcC0aIdaweKuvQ/exec';
+const DEFAULT_OPERATEURS = ['Jean', 'Marie', 'Karim', 'Sophie'];
+// ════════════════════════════════════
+
+const _mem = {};
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch(e) { return _mem[k]??null; } },
+  set(k,v) { try { localStorage.setItem(k,v); } catch(e) { _mem[k]=v; } }
+};
+
+let scriptUrl = store.get('proterre_url') || DEFAULT_SCRIPT_URL;
+let rolls = JSON.parse(store.get('proterre_rolls')||'[]');
+let historique = JSON.parse(store.get('proterre_hist')||'[]');
+let currentFilter = 'tous';
+let videoStream = null;
+let scanActive = false;
+let rafId = null;
+
+const STATUS_LABELS = { propre:'✓ Propre', sale:'Sale', aspir:'Aspirateur fait', dasr:'DASR fait', incident:'Incident / Éventuel', inconnu:'Inconnu' };
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// EXTRACTION ID — gère les deux cas :
+//   1. QR code contient juste "R-001"
+//   2. QR code contient une URL complète avec ?scan=R-001
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function extractRollId(raw) {
+  if (!raw) return null;
+  const s = raw.trim();
+  // Cas URL : extraire le paramètre ?scan=
+  try {
+    const url = new URL(s);
+    const scan = url.searchParams.get('scan');
+    if (scan) return scan.trim().toUpperCase();
+  } catch(_) {}
+  // Cas texte brut : retourner tel quel en majuscules
+  return s.toUpperCase();
+}
+
+window.addEventListener('load', () => {
+  if (scriptUrl) document.getElementById('script-url').value = scriptUrl;
+  loadOperateurs();
+  updateSyncStatus();
+
+  // Gestion du paramètre ?scan= dans l'URL de la page (scan via QR qui ouvre le lien)
+  const urlParams = new URLSearchParams(window.location.search);
+  const scanParam = urlParams.get('scan');
+  if (scanParam) {
+    const id = scanParam.trim().toUpperCase();
+    if (scriptUrl) {
+      fetchRolls().then(() => showScanResult(id));
+    } else {
+      showScanResult(id);
+    }
+  } else if (scriptUrl) {
+    fetchRolls();
+  } else {
+    showToast('⚠️ Configurez l\'URL dans Config');
+    switchTab('config');
+  }
+});
+
+// ━━ API ━━
+async function api(params) {
+  if (!scriptUrl) { showToast('URL non configurée'); throw new Error('no url'); }
+  const r = await fetch(scriptUrl + '?' + new URLSearchParams(params));
+  return r.json();
+}
+async function fetchRolls() {
+  try {
+    const d = await api({action:'getRolls'});
+    if (d.rolls) { rolls=d.rolls; store.set('proterre_rolls',JSON.stringify(rolls)); renderDashboard(); updateSyncStatus(true); }
+  } catch(e) { updateSyncStatus(false); }
+}
+async function fetchHistorique() {
+  try {
+    const d = await api({action:'getHistorique'});
+    if (d.historique) { historique=d.historique; store.set('proterre_hist',JSON.stringify(historique)); renderHistorique(); }
+  } catch(e) {}
+}
+
+// ━━ Scanner ━━
+function processScan() {
+  const input = document.getElementById('scan-input');
+  const id = extractRollId(input.value);
+  if (!id) return;
+  showScanResult(id);
+  input.value = '';
+}
+
+function showScanResult(id) {
+  const roll = rolls.find(r=>r.id===id);
+  const status = roll?roll.status:'inconnu';
+  const lastInfo = roll
+    ? `${roll.operator||'—'} · ${formatDate(roll.lastUpdate)} ${roll.typeLavage?'· '+roll.typeLavage:''}`
+    : 'Roll non encore enregistré — sera créé automatiquement';
+  document.getElementById('scan-result').innerHTML = `
+    <div class="result-card">
+      <div class="result-head"><div class="result-id">${id}</div>${badgeHtml(status)}</div>
+      <div class="result-meta">${lastInfo}</div>
+      <div class="lavage-select"><label>Type de lavage :</label>
+        <select id="type-lavage">
+          <option value="">— sélectionner —</option>
+          <option value="Aspirateur (hebdo)">🌀 Aspirateur (hebdo)</option>
+          <option value="DASR + papier (trimestriel)">🧴 DASR + papier (trimestriel)</option>
+          <option value="Grande eau (annuel)">💧 Grande eau (annuel)</option>
+          <option value="Incident / Éventuel">⚠️ Incident / Éventuel</option>
+        </select>
+      </div>
+      <div class="notes-input"><label>Notes (optionnel) :</label>
+        <input type="text" id="lavage-notes" placeholder="Ex : roues encrassées…" />
+      </div>
+      <div class="sep"></div>
+      <div class="status-btns">
+        <button class="btn-status btn-sale" onclick="doSetStatus('${id}','sale')">Marquer sale</button>
+        <button class="btn-status btn-aspir" onclick="doSetStatus('${id}','aspir')">Aspirateur ✓</button>
+        <button class="btn-status btn-dasr" onclick="doSetStatus('${id}','dasr')">DASR ✓</button>
+        <button class="btn-status btn-propre" onclick="doSetStatus('${id}','propre')">✅ Propre — remis en service</button>
+        <button class="btn-status btn-incident" onclick="doSetStatus('${id}','incident')">⚠️ Lavage incident</button>
+      </div>
+    </div>`;
+}
+
+async function doSetStatus(id, status) {
+  const op = document.getElementById('operateur').value;
+  if (op==='— choisir —') { showToast('Choisissez un opérateur'); return; }
+  const typeLavage = document.getElementById('type-lavage')?.value||'';
+  const notes = document.getElementById('lavage-notes')?.value||'';
+  const ts = new Date().toISOString();
+  const idx = rolls.findIndex(r=>r.id===id);
+  const entry = {id, status, lastUpdate:ts, operator:op, typeLavage, notes};
+  if (idx>=0) rolls[idx]=entry; else rolls.push(entry);
+  historique.unshift(entry);
+  store.set('proterre_rolls',JSON.stringify(rolls));
+  store.set('proterre_hist',JSON.stringify(historique));
+  showScanResult(id);
+  showToast(id+' → '+STATUS_LABELS[status]);
+  document.getElementById('scan-input').focus();
+  try { await api({action:'setStatus',id,status,operator:op,typeLavage,notes}); updateSyncStatus(true); }
+  catch(e) { updateSyncStatus(false); showToast('⚠️ Hors ligne — sauvegardé localement'); }
+}
+
+// ━━ Dashboard ━━
+function renderDashboard() {
+  document.getElementById('cnt-propre').textContent = rolls.filter(r=>r.status==='propre').length;
+  document.getElementById('cnt-sale').textContent = rolls.filter(r=>['sale','incident'].includes(r.status)).length;
+  document.getElementById('cnt-total').textContent = rolls.length;
+  const now = Date.now();
+  const retard = rolls.filter(r=>r.lastUpdate&&(now-new Date(r.lastUpdate).getTime())/86400000>7&&r.status==='propre');
+  const box = document.getElementById('alert-box');
+  box.style.display = retard.length?'block':'none';
+  if (retard.length) document.getElementById('alert-list').innerHTML = retard.map(r=>`<div class="alert-item">${r.id} — il y a ${Math.floor((now-new Date(r.lastUpdate).getTime())/86400000)} jours</div>`).join('');
+  const filtered = currentFilter==='tous'?rolls:rolls.filter(r=>r.status===currentFilter);
+  const list = document.getElementById('roll-list');
+  if (!filtered.length){list.innerHTML='<div class="empty">Aucun roll</div>';return;}
+  filtered.sort((a,b)=>(b.lastUpdate||'').localeCompare(a.lastUpdate||''));
+  list.innerHTML = filtered.map(r=>`<div class="roll-item" onclick="goScan('${r.id}')"><div><div class="roll-item-id">${r.id}</div><div class="roll-item-meta">${r.operator||'—'} · ${r.lastUpdate?formatDate(r.lastUpdate):'—'}</div></div>${badgeHtml(r.status)}</div>`).join('');
+}
+function setFilter(f,btn){currentFilter=f;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderDashboard();}
+function goScan(id){switchTab('scanner');document.getElementById('scan-input').value=id;processScan();}
+
+// ━━ Historique ━━
+function renderHistorique() {
+  const fv=(document.getElementById('hist-filter').value||'').trim().toUpperCase();
+  const items=fv?historique.filter(h=>h.id?.toUpperCase().includes(fv)):historique;
+  const list=document.getElementById('hist-list');
+  if(!items.length){list.innerHTML='<div class="empty">Aucun historique</div>';return;}
+  list.innerHTML=items.slice(0,80).map(h=>`<div class="hist-item ${h.status||'inconnu'}"><div class="hist-action">${h.id} ${badgeHtml(h.status)}</div><div class="hist-meta">${h.operator||'—'} · ${formatDate(h.ts||h.lastUpdate)} ${h.typeLavage?'· '+h.typeLavage:''}</div>${h.notes?`<div class="hist-notes">${h.notes}</div>`:''}</div>`).join('');
+}
+
+// ━━ Config ━━
+function saveConfig() {
+  const url=document.getElementById('script-url').value.trim();
+  if(!url){showToast('URL vide');return;}
+  scriptUrl=url; store.set('proterre_url',url);
+  document.getElementById('config-status').innerHTML='<span class="spinner"></span>Test…';
+  fetchRolls().then(()=>document.getElementById('config-status').textContent='✅ Connexion OK !').catch(()=>document.getElementById('config-status').textContent='❌ Erreur de connexion');
+}
+function loadOperateurs() {
+  const saved=store.get('proterre_operateurs');
+  const ops=saved?JSON.parse(saved):DEFAULT_OPERATEURS;
+  document.getElementById('operateur').innerHTML='<option>— choisir —</option>'+ops.map(o=>`<option>${o}</option>`).join('');
+  const ta=document.getElementById('operateurs-list');
+  if(ta) ta.value=ops.join('\n');
+}
+function saveOperateurs() {
+  const lines=document.getElementById('operateurs-list').value.split('\n').map(l=>l.trim()).filter(Boolean);
+  store.set('proterre_operateurs',JSON.stringify(lines)); loadOperateurs(); showToast('Opérateurs enregistrés');
+}
+async function addRoll() {
+  const id=document.getElementById('new-roll-id').value.trim().toUpperCase();
+  if(!id)return;
+  try{await api({action:'addRoll',id});showToast(id+' ajouté');document.getElementById('new-roll-id').value='';fetchRolls();}
+  catch(e){showToast('Erreur');}
+}
+
+// ━━ CAMÉRA ━━
+async function toggleCamera() {
+  if (scanActive) { closeCamera(); return; }
+  if (!navigator.mediaDevices?.getUserMedia) { showToast('❌ Caméra non supportée'); return; }
+
+  const btn = document.getElementById('btn-cam-toggle');
+  btn.textContent = '⏳ Démarrage…';
+  btn.disabled = true;
+  setScanStatus('⏳ Initialisation…');
+
+  try {
+    try {
+      videoStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720} }
+      });
+    } catch(_) {
+      videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    }
+
+    const video = document.getElementById('video');
+    video.srcObject = videoStream;
+    await new Promise((resolve, reject) => {
+      const t = setTimeout(()=>reject(new Error('timeout')),10000);
+      video.onloadedmetadata = async () => { clearTimeout(t); try{await video.play();resolve();}catch(e){reject(e);} };
+    });
+
+    document.getElementById('video-wrap').style.display = 'block';
+    btn.textContent = '📷 Fermer la caméra';
+    btn.disabled = false;
+    scanActive = true;
+    setScanStatus('🔍 Scan en cours…');
+    rafId = requestAnimationFrame(scanFrame);
+
+  } catch(e) {
+    btn.textContent = '📷 Scanner avec la caméra';
+    btn.disabled = false;
+    if(videoStream){videoStream.getTracks().forEach(t=>t.stop());videoStream=null;}
+    const msgs = {NotAllowedError:'❌ Permission refusée',NotFoundError:'❌ Aucune caméra',NotReadableError:'❌ Caméra occupée'};
+    showToast(msgs[e.name]||'❌ Erreur : '+e.message);
+  }
+}
+
+function closeCamera() {
+  scanActive = false;
+  if (rafId){cancelAnimationFrame(rafId);rafId=null;}
+  if (videoStream){videoStream.getTracks().forEach(t=>t.stop());videoStream=null;}
+  document.getElementById('video').srcObject = null;
+  document.getElementById('video-wrap').style.display = 'none';
+  const btn = document.getElementById('btn-cam-toggle');
+  btn.textContent = '📷 Scanner avec la caméra';
+  btn.disabled = false;
+}
+
+function setScanStatus(msg) {
+  const el = document.getElementById('scan-status');
+  if(el) el.textContent = msg;
+}
+
+function scanFrame() {
+  if (!scanActive) return;
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+
+  if (video.readyState >= 2 && video.videoWidth > 0) {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d',{willReadFrequently:true});
+    ctx.drawImage(video, 0, 0);
+
+    if (typeof jsQR !== 'undefined') {
+      try {
+        const imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
+        const code = jsQR(imgData.data, imgData.width, imgData.height, {inversionAttempts:'attemptBoth'});
+        if (code?.data) {
+          // ← EXTRACTION INTELLIGENTE : gère URL complète OU juste l'ID
+          const id = extractRollId(code.data);
+          setScanStatus('✅ Détecté : '+id);
+          closeCamera();
+          document.getElementById('scan-input').value = id;
+          showScanResult(id);
+          showToast('✅ Scanné : '+id);
+          return;
+        }
+      } catch(_) {}
+    }
+  }
+  rafId = requestAnimationFrame(scanFrame);
+}
+
+// ━━ Utils ━━
+function badgeHtml(s){const l={propre:'Propre',sale:'Sale',aspir:'Aspirateur',dasr:'DASR',incident:'Incident',inconnu:'?'};return `<span class="badge badge-${s||'inconnu'}">${l[s]||s}</span>`;}
+function formatDate(iso){if(!iso)return '—';const d=new Date(iso);return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});}
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['scanner','dashboard','historique','config'][i]===name));
+  document.querySelectorAll('.section').forEach(s=>s.classList.toggle('active',s.id===name));
+  if(name==='dashboard'){fetchRolls();renderDashboard();}
+  if(name==='historique'){fetchHistorique();renderHistorique();}
+}
+function updateSyncStatus(ok){const el=document.getElementById('sync-status');if(ok===true){el.textContent='⬤';el.style.color='#9FE1CB';}else if(ok===false){el.textContent='⬤';el.style.color='#F0997B';}else{el.textContent='⬤';el.style.color='rgba(255,255,255,0.4)';}}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2800);}
+</script>
+</body>
+</html>
